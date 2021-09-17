@@ -15,7 +15,7 @@ async function main() {
   console.log(`Registry Address: ${poolContract.address}`)
 
   console.log('Waiting to verify...')
-  await new Promise(r => setTimeout(r, 60000))
+  await new Promise((r) => setTimeout(r, 60000))
 
   console.log('Verifying...')
   await hre.run('verify:verify', {
@@ -26,7 +26,7 @@ async function main() {
 
 main()
   .then(() => process.exit(0))
-  .catch(error => {
+  .catch((error) => {
     console.error(error)
     process.exit(1)
   })

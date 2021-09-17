@@ -12,8 +12,8 @@ export class MerkleTree {
 
   public constructor(elements) {
     this.elements = elements
-      .filter(el => el)
-      .map(el => Buffer.from(hexToBytes(el)))
+      .filter((el) => el)
+      .map((el) => Buffer.from(hexToBytes(el)))
 
     // Sort elements
     this.elements.sort(Buffer.compare)
@@ -135,11 +135,11 @@ export class MerkleTree {
   }
 
   public bufArrToHexArr(arr) {
-    if (arr.some(el => !Buffer.isBuffer(el))) {
+    if (arr.some((el) => !Buffer.isBuffer(el))) {
       throw new Error('Array is not an array of buffers')
     }
 
-    return arr.map(el => '0x' + el.toString('hex'))
+    return arr.map((el) => '0x' + el.toString('hex'))
   }
 
   public sortAndConcat(...args) {

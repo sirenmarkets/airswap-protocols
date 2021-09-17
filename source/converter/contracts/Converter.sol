@@ -132,23 +132,26 @@ contract Converter is Ownable, ReentrancyGuard, TokenPaymentSplitter {
       // Calls the swap function from the on-chain AMM to swap token from fee pool into reward token.
       IUniswapV2Router02(uniRouter)
         .swapExactTokensForTokensSupportingFeeOnTransferTokens(
-        tokenBalance,
-        _amountOutMin,
-        path,
-        address(this),
-        block.timestamp
-      );
+          tokenBalance,
+          _amountOutMin,
+          path,
+          address(this),
+          block.timestamp
+        );
     }
     // Calls the balanceOf function from the reward token to get the new balance post-swap.
-    uint256 newTokenBalance = _balanceOfErc20(swapToToken);
+    uint256 totalPayeeAmount = _balanceOfErc20(swapToToken);
     // Calculates trigger reward amount and transfers to msg.sender.
-    uint256 triggerFeeAmount = newTokenBalance.mul(triggerFee).div(100);
-    _transferErc20(msg.sender, swapToToken, triggerFeeAmount);
+    if (triggerFee > 0) {
+      uint256 triggerFeeAmount = totalPayeeAmount.mul(triggerFee).div(100);
+      _transferErc20(msg.sender, swapToToken, triggerFeeAmount);
+      totalPayeeAmount = totalPayeeAmount.sub(triggerFeeAmount);
+    }
     // Transfers remaining amount to reward payee address(es).
-    uint256 totalPayeeAmount = newTokenBalance.sub(triggerFeeAmount);
     for (uint256 i = 0; i < _payees.length; i++) {
-      uint256 payeeAmount =
-        (totalPayeeAmount.mul(_shares[_payees[i]])).div(_totalShares);
+      uint256 payeeAmount = (totalPayeeAmount.mul(_shares[_payees[i]])).div(
+        _totalShares
+      );
       _transferErc20(_payees[i], swapToToken, payeeAmount);
     }
     emit ConvertAndTransfer(

@@ -30,13 +30,13 @@ export class Server {
             'Content-Type': 'application/json',
           },
         })
-          .then(res => {
+          .then((res) => {
             return res.text()
           })
-          .then(text => {
+          .then((text) => {
             callback(null, text)
           })
-          .catch(err => {
+          .catch((err) => {
             callback(err)
           })
       }, options)
