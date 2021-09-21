@@ -30,7 +30,12 @@ contract Staking is Ownable {
   uint256 public cliff;
 
   // Mapping of account to stakes
-  mapping(address => Stake[]) public allStakes;
+  mapping(address => Stake) public allStakes;
+
+  // Mapping of account to delegate
+  mapping(address => address) public accountDelegate;
+  mapping(address => address) public delegateAccount;
+  mapping(address => bool) public isDelegate;
 
   // ERC-20 token properties
   string public name;
@@ -85,57 +90,82 @@ contract Staking is Ownable {
   }
 
   /**
+   * @notice Add delegate for account
+   * @param delegate address
+   */
+  function addDelegate(address delegate) external {
+    require(isDelegate[delegate], "ALREADY_DELEGATE");
+    require(allStakes[delegate].balance == 0, "ALREADY_STAKING");
+    accountDelegate[msg.sender] = delegate;
+    isDelegate[delegate] = true;
+    delegateAccount[delegate] = msg.sender;
+  }
+
+  /**
+   * @notice Remove delegate for account
+   * @param delegate address
+   */
+  function removeDelegate(address delegate) external {
+    require(accountDelegate[msg.sender] == delegate, "NOT_DELEGATE");
+    accountDelegate[msg.sender] = address(0);
+    isDelegate[delegate] = false;
+    delegateAccount[delegate] = address(0);
+  }
+
+  /**
    * @notice Stake tokens
    * @param amount uint256
    */
   function stake(uint256 amount) external {
-    stakeFor(msg.sender, amount);
+    if (isDelegate[msg.sender]) {
+      stakeFor(delegateAccount[msg.sender], amount);
+    } else {
+      stakeFor(msg.sender, amount);
+    }
   }
 
   /**
    * @notice Extend a stake
    * @param amount uint256
+   * @param extendDuration uint256
    */
-  function extend(uint256 index, uint256 amount) external {
-    extendFor(index, msg.sender, amount);
+  function extend(uint256 amount, uint256 extendDuration) external {
+    if (isDelegate[msg.sender]) {
+      _extend(delegateAccount[msg.sender], amount, extendDuration);
+    } else {
+      _extend(msg.sender, amount, extendDuration);
+    }
   }
 
   /**
    * @notice Unstake multiple
    * @param amounts uint256[]
    */
-  function unstake(uint256[] calldata amounts) external {
+  function unstake(uint256 amounts) external {
     uint256 totalAmount = 0;
-    uint256 length = amounts.length;
-    while (length > 0) {
-      length = length - 1;
-      if (amounts[length] > 0) {
-        _unstake(length, amounts[length]);
-        totalAmount += amounts[length];
-      }
-    }
+    address account;
+    isDelegate[msg.sender]
+      ? account = delegateAccount[msg.sender]
+      : account = msg.sender;
+    _unstake(account, amounts);
+    totalAmount += amounts;
+
     if (totalAmount > 0) {
-      token.transfer(msg.sender, totalAmount);
-      emit Transfer(msg.sender, address(0), totalAmount);
+      token.transfer(account, totalAmount);
+      emit Transfer(account, address(0), totalAmount);
     }
   }
 
   /**
-   * @notice All stakes for an account
-   * @param account uint256
+   * @notice Stake for an account
+   * @param account address
    */
   function getStakes(address account)
     external
     view
-    returns (Stake[] memory stakes)
+    returns (Stake memory accountStake)
   {
-    uint256 length = allStakes[account].length;
-    stakes = new Stake[](length);
-    while (length > 0) {
-      length = length - 1;
-      stakes[length] = allStakes[account][length];
-    }
-    return stakes;
+    return allStakes[account];
   }
 
   /**
@@ -149,13 +179,7 @@ contract Staking is Ownable {
    * @notice Balance of an account (ERC-20)
    */
   function balanceOf(address account) external view returns (uint256 total) {
-    Stake[] memory stakes = allStakes[account];
-    uint256 length = stakes.length;
-    while (length > 0) {
-      length = length - 1;
-      total = total.add(stakes[length].balance);
-    }
-    return total;
+    return allStakes[account].balance;
   }
 
   /**
@@ -165,7 +189,6 @@ contract Staking is Ownable {
     return token.decimals();
   }
 
-
   /**
    * @notice Stake tokens for an account
    * @param account address
@@ -173,64 +196,31 @@ contract Staking is Ownable {
    */
   function stakeFor(address account, uint256 amount) public {
     require(amount > 0, "AMOUNT_INVALID");
-    allStakes[account].push(
-      Stake(duration, cliff, amount, amount, block.timestamp)
-    );
+    require(allStakes[account].balance == 0, "STAKE_ALREADY");
+    allStakes[account].duration = duration;
+    allStakes[account].initial = amount;
+    allStakes[account].balance = amount;
+    allStakes[account].cliff = cliff;
+    allStakes[account].timestamp = block.timestamp;
     token.safeTransferFrom(msg.sender, address(this), amount);
     emit Transfer(address(0), account, amount);
   }
 
   /**
    * @notice Extend a stake for an account
-   * @param index uint256
    * @param account address
    * @param amount uint256
    */
-  function extendFor(
-    uint256 index,
-    address account,
-    uint256 amount
-  ) public {
-    require(amount > 0, "AMOUNT_INVALID");
-
-    Stake storage selected = allStakes[account][index];
-
-    // If selected stake is fully vested create a new stake
-    if (vested(account, index) == selected.initial) {
-      stakeFor(account, amount);
-    } else {
-      uint256 newInitial = selected.initial.add(amount);
-      uint256 newBalance = selected.balance.add(amount);
-
-      // Calculate a new timestamp proportional to the new amount
-      // New timestamp limited to current timestamp (amount / newInitial approaches 1)
-      uint256 newTimestamp =
-        selected.timestamp +
-          amount.mul(block.timestamp.sub(selected.timestamp)).div(newInitial);
-
-      allStakes[account][index] = Stake(
-        duration,
-        cliff,
-        newInitial,
-        newBalance,
-        newTimestamp
-      );
-      token.safeTransferFrom(msg.sender, address(this), amount);
-      emit Transfer(address(0), account, amount);
-    }
+  function extendFor(address account, uint256 amount) public {
+    _extend(account, amount, duration);
   }
 
   /**
    * @notice Vested amount for an account
    * @param account uint256
-   * @param index uint256
    */
-  function vested(address account, uint256 index)
-    public
-    view
-    returns (uint256)
-  {
-    Stake storage stakeData = allStakes[account][index];
+  function vested(address account) public view returns (uint256) {
+    Stake storage stakeData = allStakes[account];
     if (block.timestamp.sub(stakeData.timestamp) > duration) {
       return stakeData.initial;
     }
@@ -243,38 +233,55 @@ contract Staking is Ownable {
   /**
    * @notice Available amount for an account
    * @param account uint256
-   * @param index uint256
    */
-  function available(address account, uint256 index)
-    public
-    view
-    returns (uint256)
-  {
-    Stake memory selected = allStakes[account][index];
+  function available(address account) public view returns (uint256) {
+    Stake memory selected = allStakes[account];
     if (block.timestamp.sub(selected.timestamp) < selected.cliff) {
       return 0;
     }
-    return vested(account, index) - (selected.initial - selected.balance);
+    uint256 timeDifference = block.timestamp.sub(allStakes[account].timestamp);
+    return
+      allStakes[account].balance.mul(timeDifference).div(
+        allStakes[account].duration
+      );
+  }
+
+  /**
+   * @notice Extend a stake
+   * @param account address
+   * @param amount uint256
+   * @param extendDuration uint256
+   */
+  function _extend(
+    address account,
+    uint256 amount,
+    uint256 extendDuration
+  ) internal {
+    require(amount > 0, "AMOUNT_INVALID");
+    uint256 nowAvailable = available(account);
+    allStakes[account].duration = extendDuration;
+    allStakes[account].balance = allStakes[account].balance.add(amount);
+    // allStakes[account].timestamp =
+    //   ((block.timestamp - nowAvailable) * extendDuration) /
+    //   allStakes[account].balance;
+    allStakes[account].timestamp =
+      block.timestamp.sub(nowAvailable).mul(extendDuration).div(allStakes[account].balance);
+    token.safeTransferFrom(msg.sender, address(this), amount);
+    emit Transfer(address(0), account, amount);
   }
 
   /**
    * @notice Unstake tokens
-   * @param index uint256
+   * @param account address
    * @param amount uint256
    */
-  function _unstake(uint256 index, uint256 amount) internal {
-    require(index < allStakes[msg.sender].length, "INDEX_OUT_OF_RANGE");
-    Stake storage selected = allStakes[msg.sender][index];
+  function _unstake(address account, uint256 amount) internal {
+    Stake storage selected = allStakes[account];
     require(
       block.timestamp.sub(selected.timestamp) >= selected.cliff,
       "CLIFF_NOT_REACHED"
     );
-    require(amount <= available(msg.sender, index), "AMOUNT_EXCEEDS_AVAILABLE");
+    require(amount <= available(account), "AMOUNT_EXCEEDS_AVAILABLE");
     selected.balance = selected.balance.sub(amount);
-    if (selected.balance == 0) {
-      Stake[] memory stakes = allStakes[msg.sender];
-      allStakes[msg.sender][index] = stakes[stakes.length.sub(1)];
-      allStakes[msg.sender].pop();
-    }
   }
 }

@@ -93,11 +93,11 @@ describe('Staking Unit', () => {
       const userStakes = await staking
         .connect(account1)
         .getStakes(account1.address)
-      expect(userStakes.length).to.equal(1)
-      expect(userStakes[0].initial).to.equal(100)
-      expect(userStakes[0].balance).to.equal(100)
-      expect(userStakes[0].cliff).to.equal(CLIFF)
-      expect(userStakes[0].timestamp).to.equal(block.timestamp)
+      // expect(userStakes.length).to.equal(1)
+      expect(userStakes.initial).to.equal(100)
+      expect(userStakes.balance).to.equal(100)
+      expect(userStakes.cliff).to.equal(CLIFF)
+      expect(userStakes.timestamp).to.equal(block.timestamp)
     })
 
     it('successful staking for', async () => {
@@ -107,87 +107,87 @@ describe('Staking Unit', () => {
         .connect(account1)
         .getStakes(account2.address)
       const block = await ethers.provider.getBlock()
-      expect(userStakes.length).to.equal(1)
-      expect(userStakes[0].initial).to.equal(170)
-      expect(userStakes[0].balance).to.equal(170)
-      expect(userStakes[0].cliff).to.equal(CLIFF)
-      expect(userStakes[0].duration).to.equal(DURATION)
-      expect(userStakes[0].timestamp).to.equal(block.timestamp)
+      // expect(userStakes.length).to.equal(1)
+      expect(userStakes.initial).to.equal(170)
+      expect(userStakes.balance).to.equal(170)
+      expect(userStakes.cliff).to.equal(CLIFF)
+      expect(userStakes.duration).to.equal(DURATION)
+      expect(userStakes.timestamp).to.equal(block.timestamp)
     })
 
-    it('successful multiple stakes', async () => {
-      await token.mock.transferFrom.returns(true)
-      await staking.connect(account1).stake('100')
-      const block0 = await ethers.provider.getBlock()
-      await staking.connect(account1).stake('140')
-      const block1 = await ethers.provider.getBlock()
-      const userStakes = await staking
-        .connect(account1)
-        .getStakes(account1.address)
-      expect(userStakes.length).to.equal(2)
+    // it('successful multiple stakes', async () => {
+    //   await token.mock.transferFrom.returns(true)
+    //   await staking.connect(account1).stake('100')
+    //   const block0 = await ethers.provider.getBlock()
+    //   await staking.connect(account1).stake('140')
+    //   const block1 = await ethers.provider.getBlock()
+    //   const userStakes = await staking
+    //     .connect(account1)
+    //     .getStakes(account1.address)
+    //   expect(userStakes.length).to.equal(2)
 
-      expect(userStakes[0].initial).to.equal(100)
-      expect(userStakes[0].balance).to.equal(100)
-      expect(userStakes[0].cliff).to.equal(CLIFF)
-      expect(userStakes[0].duration).to.equal(DURATION)
-      expect(userStakes[0].timestamp).to.equal(block0.timestamp)
+    //   expect(userStakes[0].initial).to.equal(100)
+    //   expect(userStakes[0].balance).to.equal(100)
+    //   expect(userStakes[0].cliff).to.equal(CLIFF)
+    //   expect(userStakes[0].duration).to.equal(DURATION)
+    //   expect(userStakes[0].timestamp).to.equal(block0.timestamp)
 
-      expect(userStakes[1].initial).to.equal(140)
-      expect(userStakes[1].balance).to.equal(140)
-      expect(userStakes[1].cliff).to.equal(CLIFF)
-      expect(userStakes[1].duration).to.equal(DURATION)
-      expect(userStakes[1].timestamp).to.equal(block1.timestamp)
-    })
+    //   expect(userStakes[1].initial).to.equal(140)
+    //   expect(userStakes[1].balance).to.equal(140)
+    //   expect(userStakes[1].cliff).to.equal(CLIFF)
+    //   expect(userStakes[1].duration).to.equal(DURATION)
+    //   expect(userStakes[1].timestamp).to.equal(block1.timestamp)
+    // })
 
-    it('successful multiple stakes with an updated vesting schedule', async () => {
-      await token.mock.transferFrom.returns(true)
-      await staking.connect(account1).stake('100')
-      const block0 = await ethers.provider.getBlock()
-      await staking.connect(deployer).setVesting(DURATION * 2, CLIFF)
-      await staking.connect(account1).stake('140')
-      const block1 = await ethers.provider.getBlock()
+    // it('successful multiple stakes with an updated vesting schedule', async () => {
+    //   await token.mock.transferFrom.returns(true)
+    //   await staking.connect(account1).stake('100')
+    //   const block0 = await ethers.provider.getBlock()
+    //   await staking.connect(deployer).setVesting(DURATION * 2, CLIFF)
+    //   await staking.connect(account1).stake('140')
+    //   const block1 = await ethers.provider.getBlock()
 
-      const userStakes = await staking
-        .connect(account1)
-        .getStakes(account1.address)
-      expect(userStakes.length).to.equal(2)
+    //   const userStakes = await staking
+    //     .connect(account1)
+    //     .getStakes(account1.address)
+    //   expect(userStakes.length).to.equal(2)
 
-      expect(userStakes[0].initial).to.equal(100)
-      expect(userStakes[0].balance).to.equal(100)
-      expect(userStakes[0].cliff).to.equal(CLIFF)
-      expect(userStakes[0].duration).to.equal(DURATION)
-      expect(userStakes[0].timestamp).to.equal(block0.timestamp)
+    //   expect(userStakes[0].initial).to.equal(100)
+    //   expect(userStakes[0].balance).to.equal(100)
+    //   expect(userStakes[0].cliff).to.equal(CLIFF)
+    //   expect(userStakes[0].duration).to.equal(DURATION)
+    //   expect(userStakes[0].timestamp).to.equal(block0.timestamp)
 
-      expect(userStakes[1].initial).to.equal(140)
-      expect(userStakes[1].balance).to.equal(140)
-      expect(userStakes[1].cliff).to.equal(CLIFF)
-      expect(userStakes[1].duration).to.equal(DURATION * 2)
-      expect(userStakes[1].timestamp).to.equal(block1.timestamp)
-    })
+    //   expect(userStakes[1].initial).to.equal(140)
+    //   expect(userStakes[1].balance).to.equal(140)
+    //   expect(userStakes[1].cliff).to.equal(CLIFF)
+    //   expect(userStakes[1].duration).to.equal(DURATION * 2)
+    //   expect(userStakes[1].timestamp).to.equal(block1.timestamp)
+    // })
 
-    it('successful multiple stake fors', async () => {
-      await token.mock.transferFrom.returns(true)
-      await staking.connect(account1).stakeFor(account2.address, '100')
-      const block0 = await ethers.provider.getBlock()
-      await staking.connect(account1).stakeFor(account2.address, '140')
-      const block1 = await ethers.provider.getBlock()
-      const userStakes = await staking
-        .connect(account1)
-        .getStakes(account2.address)
-      expect(userStakes.length).to.equal(2)
+    // it('successful multiple stake fors', async () => {
+    //   await token.mock.transferFrom.returns(true)
+    //   await staking.connect(account1).stakeFor(account2.address, '100')
+    //   const block0 = await ethers.provider.getBlock()
+    //   await staking.connect(account1).stakeFor(account2.address, '140')
+    //   const block1 = await ethers.provider.getBlock()
+    //   const userStakes = await staking
+    //     .connect(account1)
+    //     .getStakes(account2.address)
+    //   expect(userStakes.length).to.equal(2)
 
-      expect(userStakes[0].initial).to.equal(100)
-      expect(userStakes[0].balance).to.equal(100)
-      expect(userStakes[0].cliff).to.equal(CLIFF)
-      expect(userStakes[0].duration).to.equal(DURATION)
-      expect(userStakes[0].timestamp).to.equal(block0.timestamp)
+    //   expect(userStakes[0].initial).to.equal(100)
+    //   expect(userStakes[0].balance).to.equal(100)
+    //   expect(userStakes[0].cliff).to.equal(CLIFF)
+    //   expect(userStakes[0].duration).to.equal(DURATION)
+    //   expect(userStakes[0].timestamp).to.equal(block0.timestamp)
 
-      expect(userStakes[1].initial).to.equal(140)
-      expect(userStakes[1].balance).to.equal(140)
-      expect(userStakes[1].cliff).to.equal(CLIFF)
-      expect(userStakes[1].duration).to.equal(DURATION)
-      expect(userStakes[1].timestamp).to.equal(block1.timestamp)
-    })
+    //   expect(userStakes[1].initial).to.equal(140)
+    //   expect(userStakes[1].balance).to.equal(140)
+    //   expect(userStakes[1].cliff).to.equal(CLIFF)
+    //   expect(userStakes[1].duration).to.equal(DURATION)
+    //   expect(userStakes[1].timestamp).to.equal(block1.timestamp)
+    // })
 
     it('unsuccessful staking', async () => {
       await token.mock.transferFrom.revertsWithReason('Insufficient Funds')
@@ -205,31 +205,31 @@ describe('Staking Unit', () => {
     it('unsuccessful extend stake when amount is 0', async () => {
       await token.mock.transferFrom.returns(true)
       await expect(
-        staking.connect(account1).extend('0', '0')
+        staking.connect(account1).extend('0', DURATION)
       ).to.be.revertedWith('AMOUNT_INVALID')
     })
 
     it('unsuccessful extend stake when no stakes made', async () => {
       await token.mock.transferFrom.returns(true)
-      await expect(staking.connect(account1).extend('0', '100')).to.be.reverted
+      await expect(staking.connect(account1).extend('100')).to.be.reverted
     })
 
-    it('successful extend stake stake has been made', async () => {
+    it('successful extend stake when stake has been made', async () => {
       await token.mock.transferFrom.returns(true)
       await staking.connect(account1).stake('100')
       const block = await ethers.provider.getBlock()
-      await staking.connect(account1).extend('0', '120')
+      await staking.connect(account1).extend('120', DURATION)
 
       const userStakes = await staking
         .connect(account1)
         .getStakes(account1.address)
-      expect(userStakes.length).to.equal(1)
+      // expect(userStakes.length).to.equal(1)
 
-      expect(userStakes[0].initial).to.equal(220)
-      expect(userStakes[0].balance).to.equal(220)
-      expect(userStakes[0].cliff).to.equal(CLIFF)
-      expect(userStakes[0].duration).to.equal(DURATION)
-      expect(userStakes[0].timestamp).to.equal(block.timestamp)
+      expect(userStakes.initial).to.equal(100)
+      expect(userStakes.balance).to.equal(220)
+      expect(userStakes.cliff).to.equal(CLIFF)
+      expect(userStakes.duration).to.equal(DURATION)
+      expect(userStakes.timestamp).to.equal(block.timestamp)
     })
 
     it('successful extend stake and timestamp updates to appropriate value', async () => {
@@ -242,17 +242,17 @@ describe('Staking Unit', () => {
 
       const blockNewTime = await ethers.provider.getBlockNumber()
       const blockNewTimeInfo = await ethers.provider.getBlock(blockNewTime)
-      await staking.connect(account1).extend('0', '120')
+      await staking.connect(account1).extend('120', DURATION)
 
       const userStakes = await staking
         .connect(account1)
         .getStakes(account1.address)
-      expect(userStakes.length).to.equal(1)
+      // expect(userStakes.length).to.equal(1)
 
-      expect(userStakes[0].initial).to.equal(220)
-      expect(userStakes[0].balance).to.equal(220)
-      expect(userStakes[0].cliff).to.equal(CLIFF)
-      expect(userStakes[0].duration).to.equal(DURATION)
+      expect(userStakes.initial).to.equal(100)
+      expect(userStakes.balance).to.equal(220)
+      expect(userStakes.cliff).to.equal(CLIFF)
+      expect(userStakes.duration).to.equal(DURATION)
 
       // check if timestamp was updated appropriately
       const diff = BN.from(blockNewTimeInfo.timestamp).sub(block0.timestamp)
@@ -262,42 +262,42 @@ describe('Staking Unit', () => {
       const sum = BN.from(block0.timestamp)
         .add(BN.from(quotient))
         .add(1)
-      expect(userStakes[0].timestamp).to.equal(sum)
+      expect(userStakes.timestamp).to.equal(sum)
     })
 
-    it('successful extend creates a new stake due to existing being fully vested', async () => {
-      await token.mock.transferFrom.returns(true)
-      await staking.connect(account1).stake('100')
-      const block0 = await ethers.provider.getBlock()
+    // it('successful extend creates a new stake due to existing being fully vested', async () => {
+    //   await token.mock.transferFrom.returns(true)
+    //   await staking.connect(account1).stake('100')
+    //   const block0 = await ethers.provider.getBlock()
 
-      // advance to fully vest
-      await ethers.provider.send('evm_mine', [block0.timestamp + DURATION])
-      await staking.connect(account1).extend('0', '120')
+    //   // advance to fully vest
+    //   await ethers.provider.send('evm_mine', [block0.timestamp + DURATION])
+    //   await staking.connect(account1).extend('0', '120')
 
-      const userStakes = await staking
-        .connect(account1)
-        .getStakes(account1.address)
-      expect(userStakes.length).to.equal(2)
+    //   const userStakes = await staking
+    //     .connect(account1)
+    //     .getStakes(account1.address)
+    //   expect(userStakes.length).to.equal(2)
 
-      expect(userStakes[1].initial).to.equal(120)
-      expect(userStakes[1].balance).to.equal(120)
-      expect(userStakes[1].cliff).to.equal(CLIFF)
-      expect(userStakes[1].duration).to.equal(DURATION)
+    //   expect(userStakes[1].initial).to.equal(120)
+    //   expect(userStakes[1].balance).to.equal(120)
+    //   expect(userStakes[1].cliff).to.equal(CLIFF)
+    //   expect(userStakes[1].duration).to.equal(DURATION)
 
-      // check if timestamp was updated appropriately
-      const block1 = await ethers.provider.getBlock()
-      expect(userStakes[1].timestamp).to.equal(block1.timestamp)
-    })
+    //   // check if timestamp was updated appropriately
+    //   const block1 = await ethers.provider.getBlock()
+    //   expect(userStakes[1].timestamp).to.equal(block1.timestamp)
+    // })
 
     it('unsuccessful extendFor when amount <= 0', async () => {
       await expect(
-        staking.connect(account1).extendFor('0', account2.address, '0')
+        staking.connect(account1).extendFor(account2.address, '0')
       ).to.be.revertedWith('AMOUNT_INVALID')
     })
 
     it('unsuccessful extendFor when user extending for has no take at selected index', async () => {
       await expect(
-        staking.connect(account1).extendFor('0', account2.address, '0')
+        staking.connect(account1).extendFor(account2.address, '0')
       ).to.be.reverted
     })
 
@@ -305,18 +305,18 @@ describe('Staking Unit', () => {
       await token.mock.transferFrom.returns(true)
       await staking.connect(account2).stake('100')
       await expect(
-        staking.connect(account1).extendFor('0', account2.address, '1')
+        staking.connect(account1).extendFor(account2.address, '1')
       ).to.not.be.reverted
 
       const userStakes = await staking
         .connect(account1)
         .getStakes(account2.address)
-      expect(userStakes.length).to.equal(1)
+      // expect(userStakes.length).to.equal(1)
 
-      expect(userStakes[0].initial).to.equal(101)
-      expect(userStakes[0].balance).to.equal(101)
-      expect(userStakes[0].cliff).to.equal(CLIFF)
-      expect(userStakes[0].duration).to.equal(DURATION)
+      expect(userStakes.initial).to.equal(100)
+      expect(userStakes.balance).to.equal(101)
+      expect(userStakes.cliff).to.equal(CLIFF)
+      expect(userStakes.duration).to.equal(DURATION)
     })
 
     it('successful extendFor when existing stake is fully vested', async () => {
@@ -329,19 +329,19 @@ describe('Staking Unit', () => {
       }
 
       await expect(
-        staking.connect(account1).extendFor('0', account2.address, '1')
+        staking.connect(account1).extendFor(account2.address, '1')
       ).to.not.be.reverted
 
       //if the first stake is fully vested a second stake is created
       const userStakes = await staking
         .connect(account1)
         .getStakes(account2.address)
-      expect(userStakes.length).to.equal(2)
+      // expect(userStakes.length).to.equal(2)
 
-      expect(userStakes[1].initial).to.equal(1)
-      expect(userStakes[1].balance).to.equal(1)
-      expect(userStakes[1].cliff).to.equal(CLIFF)
-      expect(userStakes[1].duration).to.equal(DURATION)
+      expect(userStakes.initial).to.equal(100)
+      expect(userStakes.balance).to.equal(101)
+      expect(userStakes.cliff).to.equal(CLIFF)
+      expect(userStakes.duration).to.equal(DURATION)
     })
   })
 
@@ -351,7 +351,7 @@ describe('Staking Unit', () => {
       await token.mock.transfer.returns(true)
       await staking.connect(account1).stake('100')
       await expect(
-        staking.connect(account1).unstake(['50'])
+        staking.connect(account1).unstake('50')
       ).to.be.revertedWith('CLIFF_NOT_REACHED')
     })
 
@@ -364,7 +364,7 @@ describe('Staking Unit', () => {
       await ethers.provider.send('evm_mine', [block['timestamp'] + CLIFF])
 
       await expect(
-        staking.connect(account1).unstake(['100'])
+        staking.connect(account1).unstake('100')
       ).to.be.revertedWith('AMOUNT_EXCEEDS_AVAILABLE')
     })
 
@@ -373,18 +373,19 @@ describe('Staking Unit', () => {
       await token.mock.transfer.returns(true)
       await staking.connect(account1).stake('100')
 
+
       // move 10 seconds forward - 10% vested
       for (let index = 0; index < 10; index++) {
         await ethers.provider.send('evm_mine')
       }
 
-      await staking.connect(account1).unstake(['10'])
+      await staking.connect(account1).unstake('10')
       const userStakes = await staking
         .connect(account1)
         .getStakes(account1.address)
-      expect(userStakes.length).to.equal(1)
-      expect(userStakes[0].initial).to.equal(100)
-      expect(userStakes[0].balance).to.equal(90)
+
+      expect(userStakes.initial).to.equal(100)
+      expect(userStakes.balance).to.equal(90)
     })
 
     it('successful unstaking with updated vesting schedule', async () => {
@@ -399,22 +400,22 @@ describe('Staking Unit', () => {
         await ethers.provider.send('evm_mine')
       }
 
-      await staking.connect(account1).unstake(['0', '5'])
+      await staking.connect(account1).unstake('5')
       const userStakes = await staking
         .connect(account1)
         .getStakes(account1.address)
-      expect(userStakes.length).to.equal(2)
-      expect(userStakes[1].initial).to.equal(100)
-      expect(userStakes[1].balance).to.equal(95)
+      // expect(userStakes.length).to.equal(2)
+      expect(userStakes.initial).to.equal(100)
+      expect(userStakes.balance).to.equal(95)
     })
 
     it('successful unstaking and removal of stake', async () => {
       await token.mock.transferFrom.returns(true)
       await token.mock.transfer.returns(true)
       await staking.connect(account1).stake('100')
-      await staking.connect(account1).stake('200')
+      await staking.connect(account1).extend('200', DURATION)
       const block0 = await ethers.provider.getBlock()
-      await staking.connect(account1).stake('300')
+      await staking.connect(account1).extend('300', DURATION)
       const block1 = await ethers.provider.getBlock()
 
       // move 100 seconds forward + 2 stakes = 102% vested
@@ -422,19 +423,16 @@ describe('Staking Unit', () => {
         await ethers.provider.send('evm_mine')
       }
 
-      await staking.connect(account1).unstake(['100'])
+      await staking.connect(account1).unstake('100')
       const userStakes = await staking
         .connect(account1)
         .getStakes(account1.address)
-      expect(userStakes.length).to.equal(2)
+      // expect(userStakes.length).to.equal(2)
 
       // ensure stake 0 was overwritten with last stake
-      expect(userStakes[0].initial).to.equal(300)
-      expect(userStakes[0].balance).to.equal(300)
-      expect(userStakes[0].timestamp).to.equal(block1.timestamp)
-      expect(userStakes[1].initial).to.equal(200)
-      expect(userStakes[1].balance).to.equal(200)
-      expect(userStakes[1].timestamp).to.equal(block0.timestamp)
+      expect(userStakes.initial).to.equal(100)
+      expect(userStakes.balance).to.equal(500)
+      expect(userStakes.timestamp).to.equal(block1.timestamp)
     })
   })
 
@@ -447,7 +445,7 @@ describe('Staking Unit', () => {
       const block = await ethers.provider.getBlock()
       await ethers.provider.send('evm_mine', [block['timestamp'] + 5])
 
-      const vestedAmount = await staking.vested(account1.address, '0')
+      const vestedAmount = await staking.vested(account1.address)
       expect(vestedAmount).to.equal('5')
     })
 
@@ -460,41 +458,41 @@ describe('Staking Unit', () => {
       const block = await ethers.provider.getBlock()
       await ethers.provider.send('evm_mine', [block['timestamp'] + 20])
 
-      const vestedAmount = await staking.vested(account1.address, '0')
+      const vestedAmount = await staking.vested(account1.address)
       expect(vestedAmount).to.equal('10')
     })
 
-    it('multiple vested amounts match expected amount per block', async () => {
-      await token.mock.transferFrom.returns(true)
-      await token.mock.transfer.returns(true)
-      await staking.connect(account1).stake('100')
-      // 10% of first stake is unlocked
-      for (let index = 0; index < CLIFF; index++) {
-        await ethers.provider.send('evm_mine')
-      }
-      await staking.connect(account1).stake('160')
-      // 13% of second stake is unlocked
-      for (let index = 0; index < 13; index++) {
-        await ethers.provider.send('evm_mine')
-      }
-      await staking.connect(account1).stake('170')
-      // 3% of third stake is unlocked
-      for (let index = 0; index < 3; index++) {
-        await ethers.provider.send('evm_mine')
-      }
+    // it('multiple vested amounts match expected amount per block', async () => {
+    //   await token.mock.transferFrom.returns(true)
+    //   await token.mock.transfer.returns(true)
+    //   await staking.connect(account1).stake('100')
+    //   // 10% of first stake is unlocked
+    //   for (let index = 0; index < CLIFF; index++) {
+    //     await ethers.provider.send('evm_mine')
+    //   }
+    //   await staking.connect(account1).extend('160', DURATION)
+    //   // 13% of second stake is unlocked
+    //   for (let index = 0; index < 13; index++) {
+    //     await ethers.provider.send('evm_mine')
+    //   }
+    //   await staking.connect(account1).extend('170', DURATION)
+    //   // 3% of third stake is unlocked
+    //   for (let index = 0; index < 3; index++) {
+    //     await ethers.provider.send('evm_mine')
+    //   }
 
-      // every 1 block 1% is vested, user can only claim starting after 10 blocks, or 10% vested
-      // 10 blocks + 1 stake + 13 blocks + 1 stake + 3 blocks = 28 total blocks passed for first stake
-      // 13 blocks + 1 stake + 3 blocks = 17 total blocks passed for second stake
-      // 3 blocks = 3 total blocks passed for third stake
+    //   // every 1 block 1% is vested, user can only claim starting after 10 blocks, or 10% vested
+    //   // 10 blocks + 1 stake + 13 blocks + 1 stake + 3 blocks = 28 total blocks passed for first stake
+    //   // 13 blocks + 1 stake + 3 blocks = 17 total blocks passed for second stake
+    //   // 3 blocks = 3 total blocks passed for third stake
 
-      const vestedAmount1 = await staking.vested(account1.address, '0')
-      const vestedAmount2 = await staking.vested(account1.address, '1')
-      const vestedAmount3 = await staking.vested(account1.address, '2')
-      expect(vestedAmount1).to.equal('28')
-      expect(vestedAmount2).to.equal('27')
-      expect(vestedAmount3).to.equal('5')
-    })
+    //   const vestedAmount1 = await staking.vested(account1.address)
+    //   const vestedAmount2 = await staking.vested(account1.address)
+    //   const vestedAmount3 = await staking.vested(account1.address)
+    //   expect(vestedAmount1).to.equal('28')
+    //   expect(vestedAmount2).to.equal('27')
+    //   expect(vestedAmount3).to.equal('5')
+    // })
   })
 
   describe('Available to unstake', async () => {
@@ -506,7 +504,7 @@ describe('Staking Unit', () => {
       const block = await ethers.provider.getBlock()
       await ethers.provider.send('evm_mine', [block['timestamp'] + CLIFF - 1])
 
-      const available = await staking.available(account1.address, '0')
+      const available = await staking.available(account1.address)
       expect(available).to.equal('0')
     })
 
@@ -515,12 +513,12 @@ describe('Staking Unit', () => {
       await token.mock.transfer.returns(true)
       await staking.connect(account1).stake('100')
       await staking.connect(deployer).setVesting(DURATION, CLIFF)
-      await staking.connect(account1).stake('100')
+      await staking.connect(account1).extend('100', DURATION)
       // move 1 block before cliff for second stake
       for (let index = 0; index < CLIFF - 1; index++) {
         await ethers.provider.send('evm_mine')
       }
-      const available = await staking.available(account1.address, '1')
+      const available = await staking.available(account1.address)
       expect(available).to.equal('0')
     })
 
@@ -532,7 +530,7 @@ describe('Staking Unit', () => {
       const block = await ethers.provider.getBlock()
       await ethers.provider.send('evm_mine', [block['timestamp'] + CLIFF])
 
-      const available = await staking.available(account1.address, '0')
+      const available = await staking.available(account1.address)
       // every 1 block 1% is vested, user can only claim starting afater 10 blocks, or 10% vested
       expect(available).to.equal('10')
     })
@@ -542,56 +540,59 @@ describe('Staking Unit', () => {
       await token.mock.transfer.returns(true)
       await staking.connect(account1).stake('100')
       await staking.connect(deployer).setVesting(DURATION, CLIFF)
-      await staking.connect(account1).stake('100')
+      await staking.connect(account1).extend('100', DURATION)
 
       const block = await ethers.provider.getBlock()
       await ethers.provider.send('evm_mine', [block['timestamp'] + CLIFF])
 
-      const available = await staking.available(account1.address, '1')
+      const available = await staking.available(account1.address)
       // every 1 block 2% is vested, user can only claim starting afater 10 blocks, or 20% vested
       expect(available).to.equal('10')
     })
 
-    it('available to unstake with multiple stakes and varying passed cliffs', async () => {
-      await token.mock.transferFrom.returns(true)
-      await token.mock.transfer.returns(true)
-      await staking.connect(account1).stake('100')
-      // 10% of first stake is unlocked
-      for (let index = 0; index < CLIFF; index++) {
-        await ethers.provider.send('evm_mine')
-      }
-      await staking.connect(account1).stake('160')
-      // 13% of second stake is unlocked
-      for (let index = 0; index < 13; index++) {
-        await ethers.provider.send('evm_mine')
-      }
-      await staking.connect(account1).stake('170')
-      // 3% of third stake is unlocked
-      for (let index = 0; index < 3; index++) {
-        await ethers.provider.send('evm_mine')
-      }
+    // it('available to unstake with multiple stakes and varying passed cliffs', async () => {
+    //   await token.mock.transferFrom.returns(true)
+    //   await token.mock.transfer.returns(true)
+    //   await staking.connect(account1).stake('100')
+    //   // 10% of first stake is unlocked
+    //   for (let index = 0; index < CLIFF; index++) {
+    //     await ethers.provider.send('evm_mine')
+    //   }
+    //   await staking.connect(account1).stake('160')
+    //   // 13% of second stake is unlocked
+    //   for (let index = 0; index < 13; index++) {
+    //     await ethers.provider.send('evm_mine')
+    //   }
+    //   await staking.connect(account1).stake('170')
+    //   // 3% of third stake is unlocked
+    //   for (let index = 0; index < 3; index++) {
+    //     await ethers.provider.send('evm_mine')
+    //   }
 
-      // every 1 block 1% is vested, user can only claim starting after 10 blocks, or 10% vested
-      // 10 blocks + 1 stake + 13 blocks + 1 stake + 3 blocks = 28 total blocks passed for first stake
-      // 13 blocks + 1 stake + 3 blocks = 17 total blocks passed for second stake
-      // 3 blocks = 3 total blocks passed for third stake
+    //   // every 1 block 1% is vested, user can only claim starting after 10 blocks, or 10% vested
+    //   // 10 blocks + 1 stake + 13 blocks + 1 stake + 3 blocks = 28 total blocks passed for first stake
+    //   // 13 blocks + 1 stake + 3 blocks = 17 total blocks passed for second stake
+    //   // 3 blocks = 3 total blocks passed for third stake
 
-      const availableStake1 = await staking.available(account1.address, '0')
-      const availableStake2 = await staking.available(account1.address, '1')
-      const availableStake3 = await staking.available(account1.address, '2')
-      expect(availableStake1).to.equal('28')
-      expect(availableStake2).to.equal('27')
-      expect(availableStake3).to.equal('0')
-    })
+    //   const availableStake1 = await staking.available(account1.address)
+    //   const availableStake2 = await staking.available(account1.address)
+    //   const availableStake3 = await staking.available(account1.address)
+    //   expect(availableStake1).to.equal('28')
+    //   expect(availableStake2).to.equal('27')
+    //   expect(availableStake3).to.equal('0')
+    // })
   })
 
   describe('Balance of all stakes', async () => {
     it('get balance of all stakes', async () => {
+      
       await token.mock.transferFrom.returns(true)
       await token.mock.transfer.returns(true)
       // stake 400 over 4 blocks
-      for (let index = 0; index < 4; index++) {
-        await staking.connect(account1).stake('100')
+      await staking.connect(account1).stake('100')
+      
+      for (let index = 0; index < 3; index++) {
+        await staking.connect(account1).extend('100', DURATION)
       }
       const balance = await staking
         .connect(account1)
