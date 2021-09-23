@@ -16,7 +16,6 @@ contract Staking is Ownable {
   using SafeMath for uint256;
   struct Stake {
     uint256 duration;
-    uint256 cliff;
     uint256 initial;
     uint256 balance;
     uint256 timestamp;
@@ -27,7 +26,6 @@ contract Staking is Ownable {
 
   // Vesting duration and cliff
   uint256 public duration;
-  uint256 public cliff;
 
   // Mapping of account to stakes
   mapping(address => Stake) public allStakes;
@@ -50,30 +48,25 @@ contract Staking is Ownable {
    * @param _name string
    * @param _symbol string
    * @param _duration uint256
-   * @param _cliff uint256
    */
   constructor(
     ERC20 _token,
     string memory _name,
     string memory _symbol,
-    uint256 _duration,
-    uint256 _cliff
+    uint256 _duration
   ) {
     token = _token;
     name = _name;
     symbol = _symbol;
     duration = _duration;
-    cliff = _cliff;
   }
 
   /**
    * @notice Set vesting config
    * @param _duration uint256
-   * @param _cliff uint256
    */
-  function setVesting(uint256 _duration, uint256 _cliff) external onlyOwner {
+  function setVesting(uint256 _duration) external onlyOwner {
     duration = _duration;
-    cliff = _cliff;
   }
 
   /**
@@ -94,7 +87,7 @@ contract Staking is Ownable {
    * @param delegate address
    */
   function addDelegate(address delegate) external {
-    require(isDelegate[delegate], "ALREADY_DELEGATE");
+    require(!isDelegate[delegate], "ALREADY_DELEGATE");
     require(allStakes[delegate].balance == 0, "ALREADY_STAKING");
     accountDelegate[msg.sender] = delegate;
     isDelegate[delegate] = true;
@@ -139,16 +132,16 @@ contract Staking is Ownable {
 
   /**
    * @notice Unstake multiple
-   * @param amounts uint256[]
+   * @param amount uint256
    */
-  function unstake(uint256 amounts) external {
+  function unstake(uint256 amount) external {
     uint256 totalAmount = 0;
     address account;
     isDelegate[msg.sender]
       ? account = delegateAccount[msg.sender]
       : account = msg.sender;
-    _unstake(account, amounts);
-    totalAmount += amounts;
+    _unstake(account, amount);
+    totalAmount += amount;
 
     if (totalAmount > 0) {
       token.transfer(account, totalAmount);
@@ -200,7 +193,6 @@ contract Staking is Ownable {
     allStakes[account].duration = duration;
     allStakes[account].initial = amount;
     allStakes[account].balance = amount;
-    allStakes[account].cliff = cliff;
     allStakes[account].timestamp = block.timestamp;
     token.safeTransferFrom(msg.sender, address(this), amount);
     emit Transfer(address(0), account, amount);
@@ -215,35 +207,34 @@ contract Staking is Ownable {
     _extend(account, amount, duration);
   }
 
-  /**
-   * @notice Vested amount for an account
-   * @param account uint256
-   */
-  function vested(address account) public view returns (uint256) {
-    Stake storage stakeData = allStakes[account];
-    if (block.timestamp.sub(stakeData.timestamp) > duration) {
-      return stakeData.initial;
-    }
-    return
-      stakeData.initial.mul(block.timestamp.sub(stakeData.timestamp)).div(
-        stakeData.duration
-      );
-  }
+  // /**
+  //  * @notice Vested amount for an account
+  //  * @param account uint256
+  //  */
+  // function vested(address account) public view returns (uint256) {
+  //   Stake storage stakeData = allStakes[account];
+  //   if (block.timestamp.sub(stakeData.timestamp) > duration) {
+  //     return stakeData.initial;
+  //   }
+  //   return
+  //     stakeData.initial.mul(block.timestamp.sub(stakeData.timestamp)).div(
+  //       stakeData.duration
+  //     );
+  // }
 
   /**
    * @notice Available amount for an account
    * @param account uint256
    */
   function available(address account) public view returns (uint256) {
-    Stake memory selected = allStakes[account];
-    if (block.timestamp.sub(selected.timestamp) < selected.cliff) {
-      return 0;
+    Stake storage selected = allStakes[account];
+    uint256 _available = (block.timestamp.sub(selected.timestamp)).mul(selected.balance)
+    .div(selected.duration);
+    if (_available >= allStakes[account].balance) {
+      return allStakes[account].balance;
+    } else {
+      return _available;
     }
-    uint256 timeDifference = block.timestamp.sub(allStakes[account].timestamp);
-    return
-      allStakes[account].balance.mul(timeDifference).div(
-        allStakes[account].duration
-      );
   }
 
   /**
@@ -257,15 +248,18 @@ contract Staking is Ownable {
     uint256 amount,
     uint256 extendDuration
   ) internal {
+    Stake storage selected = allStakes[account];
     require(amount > 0, "AMOUNT_INVALID");
+    require(extendDuration >= selected.duration, "DURATION_INVALID");
     uint256 nowAvailable = available(account);
-    allStakes[account].duration = extendDuration;
-    allStakes[account].balance = allStakes[account].balance.add(amount);
-    // allStakes[account].timestamp =
-    //   ((block.timestamp - nowAvailable) * extendDuration) /
-    //   allStakes[account].balance;
-    allStakes[account].timestamp =
-      block.timestamp.sub(nowAvailable).mul(extendDuration).div(allStakes[account].balance);
+    selected.balance = selected.balance.add(amount);
+    if (selected.duration != extendDuration) {
+    selected.duration = extendDuration;
+    }
+    selected.timestamp = block.timestamp
+    .sub(nowAvailable
+    .mul(selected.duration)
+    .div(selected.balance));
     token.safeTransferFrom(msg.sender, address(this), amount);
     emit Transfer(address(0), account, amount);
   }
@@ -277,10 +271,6 @@ contract Staking is Ownable {
    */
   function _unstake(address account, uint256 amount) internal {
     Stake storage selected = allStakes[account];
-    require(
-      block.timestamp.sub(selected.timestamp) >= selected.cliff,
-      "CLIFF_NOT_REACHED"
-    );
     require(amount <= available(account), "AMOUNT_EXCEEDS_AVAILABLE");
     selected.balance = selected.balance.sub(amount);
   }
