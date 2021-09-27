@@ -27,7 +27,7 @@ contract Staking is Ownable {
   uint256 public vestingLength;
 
   // Mapping of account to stakes
-  mapping(address => Stake) public allStakes;
+  mapping(address => Stake) internal allStakes;
 
   // Mapping of account to delegate
   mapping(address => address) public accountDelegate;

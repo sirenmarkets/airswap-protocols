@@ -2,7 +2,7 @@ const { expect } = require('chai')
 const { ethers, waffle } = require('hardhat')
 const BN = ethers.BigNumber
 const { deployMockContract } = waffle
-const IERC20 = require('@openzeppelin/contracts/build/contracts/IERC20.json')
+const IERC20 = require('@openzeppelin/contracts/build/contracts/ERC20.json')
 
 describe('Staking Unit', () => {
   let snapshotId
@@ -38,10 +38,14 @@ describe('Staking Unit', () => {
   describe('Default Values', async () => {
     it('constructor sets default values', async () => {
       const owner = await staking.owner()
+      const name = await staking.name()
+      const symbol = await staking.symbol()
       const tokenAddress = await staking.token()
       const defaultduration = await staking.vestingLength()
 
       expect(owner).to.equal(deployer.address)
+      expect(name).to.equal('Staked AST')
+      expect(symbol).to.equal('sAST')
       expect(tokenAddress).to.equal(token.address)
       expect(defaultduration).to.equal(DEFAULTDURATION)
     })
@@ -62,6 +66,12 @@ describe('Staking Unit', () => {
       expect(name).to.equal('Staked AST2')
       expect(symbol).to.equal('sAST2')
     })
+
+    it('successful demicals call', async () => {
+      await token.mock.decimals.returns('6')
+      const decimals = await staking.connect(deployer).decimals()
+      expect(decimals).to.equal(6)
+    })
   })
 
   describe('Set Vesting Schedule', async () => {
@@ -76,6 +86,12 @@ describe('Staking Unit', () => {
 
       const defaultduration = await staking.vestingLength()
       expect(defaultduration).to.equal(2 * DEFAULTDURATION)
+    })
+
+    it('Owner cannot set vesting to zero', async () => {
+      await expect(
+        staking.connect(deployer).setVesting(0)
+      ).to.be.revertedWith('INVALID_VESTING')
     })
   })
 
@@ -171,22 +187,13 @@ describe('Staking Unit', () => {
       expect(userStakes.timestamp).to.equal(sum)
     })
 
-
-    it('unsuccessful extendFor when amount <= 0', async () => {
-      await token.mock.transferFrom.returns(true)
-      await staking.connect(account2).stake('100') 
+    it('unsuccessful stakeFor when user staking for with an amount of 0', async () => {
       await expect(
         staking.connect(account1).stakeFor(account2.address, '0')
       ).to.be.revertedWith('AMOUNT_INVALID')
     })
 
-    it('unsuccessful extendFor when user extending for with an amount of 0', async () => {
-      await expect(
-        staking.connect(account1).stakeFor(account2.address, '0')
-      ).to.be.revertedWith('AMOUNT_INVALID')
-    })
-
-    it('successful extendFor when existing stake is not fully vested', async () => {
+    it('successful stakeFor when existing stake is not fully vested', async () => {
       await token.mock.transferFrom.returns(true)
       await staking.connect(account2).stake('100')
       await expect(
@@ -201,7 +208,7 @@ describe('Staking Unit', () => {
       expect(userStakes.duration).to.equal(DEFAULTDURATION)
     })
 
-    it('successful extendFor when existing stake is fully vested', async () => {
+    it('successful stakeFor when existing stake is fully vested', async () => {
       await token.mock.transferFrom.returns(true)
       await staking.connect(account2).stake('100')
 
@@ -214,7 +221,6 @@ describe('Staking Unit', () => {
         staking.connect(account1).stakeFor(account2.address, '1')
       ).to.not.be.reverted
 
-      //if the first stake is fully vested a second stake is created
       const userStakes = await staking
         .connect(account1)
         .getStakes(account2.address)
@@ -234,7 +240,7 @@ describe('Staking Unit', () => {
       await ethers.provider.send('evm_mine', [block['timestamp'] + 10])
 
       await expect(
-        staking.connect(account1).unstake('100')
+        staking.connect(account1).unstake('12')
       ).to.be.revertedWith('AMOUNT_EXCEEDS_AVAILABLE')
     })
 
@@ -256,7 +262,7 @@ describe('Staking Unit', () => {
       expect(userStakes.balance).to.equal(90)
     })
 
-    it('successful extend and successful unstaking', async () => {
+    it('successful extended stake and successful unstaking', async () => {
       await token.mock.transferFrom.returns(true)
       await token.mock.transfer.returns(true)
       await staking.connect(account1).stake('100')
@@ -323,6 +329,17 @@ describe('Staking Unit', () => {
       expect(await staking.connect(account1).accountDelegate(account1.address)).to.equal(account2.address)
     })
 
+    it('unsuccessful delegate set if already a delegate', async () => {
+      await staking.connect(account1).addDelegate(account2.address)
+      await expect(staking.connect(deployer).addDelegate(account2.address)).to.be.revertedWith('ALREADY_DELEGATE')
+    })
+
+    it('unsuccessful delegate set if delegate already staking', async () => {
+      await token.mock.transferFrom.returns(true)
+      await staking.connect(account2).stake('100')
+      await expect(staking.connect(account1).addDelegate(account2.address)).to.be.revertedWith('ALREADY_STAKING')
+    })
+
     it('delegate can be removed', async () => {
       const zeroAddress = '0x0000000000000000000000000000000000000000'
       await staking.connect(account1).addDelegate(account2.address)
@@ -330,6 +347,10 @@ describe('Staking Unit', () => {
       expect(await staking.connect(account1).isDelegate(account2.address)).to.equal(false)
       expect(await staking.connect(account1).delegateAccount(account2.address)).to.equal(zeroAddress)
       expect(await staking.connect(account1).accountDelegate(account1.address)).to.equal(zeroAddress)
+    })
+
+    it('unsuccessful delegate removed if not set as delegate', async () => {
+      await expect(staking.connect(account1).removeDelegate(account2.address)).to.be.revertedWith('NOT_DELEGATE')
     })
 
     it('successful staking with delegate', async () => {
@@ -344,6 +365,7 @@ describe('Staking Unit', () => {
       expect(userStakes.balance).to.equal(100)
       expect(userStakes.timestamp).to.equal(block.timestamp)
     })
+
 
     it('successful unstaking with delegate', async () => {
       await token.mock.transferFrom.returns(true)
@@ -368,7 +390,7 @@ describe('Staking Unit', () => {
       expect(currentUserStakes.balance).to.equal(90)
     })
 
-    it('successful extend and successful unstaking with delegate', async () => {
+    it('successful extended stake and successful unstaking with delegate', async () => {
       await token.mock.transferFrom.returns(true)
       await token.mock.transfer.returns(true)
       await staking.connect(account1).addDelegate(account2.address)
@@ -393,6 +415,7 @@ describe('Staking Unit', () => {
       expect(initialUserStake.balance).to.equal(200)
       expect(currentUserStakes.balance).to.equal(190)
     })
+
   })
 
   describe('Balance of all stakes', async () => {
@@ -410,6 +433,32 @@ describe('Staking Unit', () => {
         .connect(account1)
         .balanceOf(account1.address)
       expect(balance).to.equal('400')
+    })
+
+    it('get total supply of all stakes', async () => {
+
+      await token.mock.transferFrom.returns(true)
+      await token.mock.transfer.returns(true)
+      
+      // stake 400 over 4 blocks
+      await staking.connect(account1).stake('100')
+
+      for (let index = 0; index < 3; index++) {
+        await staking.connect(account1).stake('100')
+      }
+
+      await staking.connect(account2).stake('100')
+
+      const totalStakes = 
+      (await staking.connect(account1).balanceOf(account1.address)) +
+      (await staking.connect(account2).balanceOf(account2.address))
+
+      await token.mock.balanceOf.returns(totalStakes)
+
+      const totalSupply = await staking
+        .connect(account1)
+        .totalSupply()
+      expect(totalSupply).to.equal(totalStakes)
     })
   })
 })
