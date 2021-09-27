@@ -12,8 +12,6 @@ describe('Staking Unit', () => {
   let token
   let stakingFactory
   let staking
-  const MINDURATION = 10 // time in seconds
-  const MAXDURATION = 1000 // time in seconds
   const DEFAULTDURATION = 100 // time in seconds
 
   beforeEach(async () => {
@@ -32,8 +30,6 @@ describe('Staking Unit', () => {
       token.address,
       'Staked AST',
       'sAST',
-      MINDURATION,
-      MAXDURATION,
       DEFAULTDURATION
     )
     await staking.deployed()
@@ -43,14 +39,10 @@ describe('Staking Unit', () => {
     it('constructor sets default values', async () => {
       const owner = await staking.owner()
       const tokenAddress = await staking.token()
-      const minDuration = await staking.vestingLengthMin()
-      const maxDuration = await staking.vestingLengthMax()
-      const defaultduration = await staking.vestingLengthDefault()
+      const defaultduration = await staking.vestingLength()
 
       expect(owner).to.equal(deployer.address)
       expect(tokenAddress).to.equal(token.address)
-      expect(minDuration).to.equal(MINDURATION)
-      expect(maxDuration).to.equal(MAXDURATION)
       expect(defaultduration).to.equal(DEFAULTDURATION)
     })
   })
@@ -75,18 +67,14 @@ describe('Staking Unit', () => {
   describe('Set Vesting Schedule', async () => {
     it('non owner cannot set vesting schedule', async () => {
       await expect(
-        staking.connect(account1).setVesting(0, 0, 0)
+        staking.connect(account1).setVesting(0)
       ).to.be.revertedWith('Ownable: caller is not the owner')
     })
 
     it('owner can set vesting schedule', async () => {
-      await staking.connect(deployer).setVesting(2 * MINDURATION, 2 * MAXDURATION, 2 * DEFAULTDURATION)
+      await staking.connect(deployer).setVesting(2 * DEFAULTDURATION)
 
-      const minDuration = await staking.vestingLengthMin()
-      const maxDuration = await staking.vestingLengthMax()
-      const defaultduration = await staking.vestingLengthDefault()
-      expect(minDuration).to.equal(2 * MINDURATION)
-      expect(maxDuration).to.equal(2 * MAXDURATION)
+      const defaultduration = await staking.vestingLength()
       expect(defaultduration).to.equal(2 * DEFAULTDURATION)
     })
   })
@@ -94,7 +82,7 @@ describe('Staking Unit', () => {
   describe('Stake', async () => {
     it('successful staking', async () => {
       await token.mock.transferFrom.returns(true)
-      await staking.connect(account1).stake('100', DEFAULTDURATION)
+      await staking.connect(account1).stake('100')
       const block = await ethers.provider.getBlock()
       const userStakes = await staking
         .connect(account1)
@@ -117,35 +105,29 @@ describe('Staking Unit', () => {
 
     it('unsuccessful staking', async () => {
       await token.mock.transferFrom.revertsWithReason('Insufficient Funds')
-      await expect(staking.connect(account1).stake('100', DEFAULTDURATION)).to.be.revertedWith(
+      await expect(staking.connect(account1).stake('100')).to.be.revertedWith(
         'Insufficient Funds'
       )
     })
 
     it('unsuccessful staking when amount is 0', async () => {
-      await expect(staking.connect(account1).stake('0', DEFAULTDURATION)).to.be.revertedWith(
+      await expect(staking.connect(account1).stake('0')).to.be.revertedWith(
         'AMOUNT_INVALID'
       )
     })
 
     it('unsuccessful extend stake when amount is 0', async () => {
       await token.mock.transferFrom.returns(true)
-      await staking.connect(account1).stake('100', DEFAULTDURATION) 
+      await staking.connect(account1).stake('100') 
       await expect(
-        staking.connect(account1).extend('0')
+        staking.connect(account1).stake('0')
       ).to.be.revertedWith('AMOUNT_INVALID')
-    })
-
-    it('unsuccessful extend stake when no stakes made', async () => {
-      await token.mock.transferFrom.returns(true)
-      await expect(staking.connect(account1).extend('100')
-      ).to.be.revertedWith('NOT_STAKED')
     })
 
     it('successful extend stake when stake has been made', async () => {
       await token.mock.transferFrom.returns(true)
-      await staking.connect(account1).stake('100', DEFAULTDURATION)
-      await staking.connect(account1).extend('120')
+      await staking.connect(account1).stake('100')
+      await staking.connect(account1).stake('120')
 
       const userStakes = await staking
         .connect(account1)
@@ -160,13 +142,13 @@ describe('Staking Unit', () => {
 
     it('successful extend stake and timestamp updates to appropriate value', async () => {
       await token.mock.transferFrom.returns(true)
-      await staking.connect(account1).stake('100',DEFAULTDURATION)
+      await staking.connect(account1).stake('100')
       const block0 = await ethers.provider.getBlock()
 
       // move 100000 seconds forward
       await ethers.provider.send('evm_mine', [block0.timestamp + 20])
 
-      await staking.connect(account1).extend('120')
+      await staking.connect(account1).stake('120')
 
       const userStakes = await staking
         .connect(account1)
@@ -192,23 +174,23 @@ describe('Staking Unit', () => {
 
     it('unsuccessful extendFor when amount <= 0', async () => {
       await token.mock.transferFrom.returns(true)
-      await staking.connect(account2).stake('100', DEFAULTDURATION) 
+      await staking.connect(account2).stake('100') 
       await expect(
-        staking.connect(account1).extendFor(account2.address, '0')
+        staking.connect(account1).stakeFor(account2.address, '0')
       ).to.be.revertedWith('AMOUNT_INVALID')
     })
 
-    it('unsuccessful extendFor when user extending for has no take at selected index', async () => {
+    it('unsuccessful extendFor when user extending for with an amount of 0', async () => {
       await expect(
-        staking.connect(account1).extendFor(account2.address, '0')
-      ).to.be.revertedWith('NOT_STAKED')
+        staking.connect(account1).stakeFor(account2.address, '0')
+      ).to.be.revertedWith('AMOUNT_INVALID')
     })
 
     it('successful extendFor when existing stake is not fully vested', async () => {
       await token.mock.transferFrom.returns(true)
-      await staking.connect(account2).stake('100', DEFAULTDURATION)
+      await staking.connect(account2).stake('100')
       await expect(
-        staking.connect(account1).extendFor(account2.address, '1')
+        staking.connect(account1).stakeFor(account2.address, '1')
       ).to.not.be.reverted
 
       const userStakes = await staking
@@ -221,7 +203,7 @@ describe('Staking Unit', () => {
 
     it('successful extendFor when existing stake is fully vested', async () => {
       await token.mock.transferFrom.returns(true)
-      await staking.connect(account2).stake('100', DEFAULTDURATION)
+      await staking.connect(account2).stake('100')
 
       // move 10 seconds forward - 100% vested
       for (let index = 0; index < 100; index++) {
@@ -229,7 +211,7 @@ describe('Staking Unit', () => {
       }
 
       await expect(
-        staking.connect(account1).extendFor(account2.address, '1')
+        staking.connect(account1).stakeFor(account2.address, '1')
       ).to.not.be.reverted
 
       //if the first stake is fully vested a second stake is created
@@ -246,7 +228,7 @@ describe('Staking Unit', () => {
     it('unstaking fails when attempting to claim more than is available', async () => {
       await token.mock.transferFrom.returns(true)
       await token.mock.transfer.returns(true)
-      await staking.connect(account1).stake('100', DEFAULTDURATION)
+      await staking.connect(account1).stake('100')
 
       const block = await ethers.provider.getBlock()
       await ethers.provider.send('evm_mine', [block['timestamp'] + 10])
@@ -259,7 +241,7 @@ describe('Staking Unit', () => {
     it('successful unstaking', async () => {
       await token.mock.transferFrom.returns(true)
       await token.mock.transfer.returns(true)
-      await staking.connect(account1).stake('100', DEFAULTDURATION)
+      await staking.connect(account1).stake('100')
 
       // move 10 seconds forward - 10% vested
       for (let index = 0; index < 10; index++) {
@@ -277,8 +259,8 @@ describe('Staking Unit', () => {
     it('successful extend and successful unstaking', async () => {
       await token.mock.transferFrom.returns(true)
       await token.mock.transfer.returns(true)
-      await staking.connect(account1).stake('100', DEFAULTDURATION)
-      await staking.connect(account1).extend('100')
+      await staking.connect(account1).stake('100')
+      await staking.connect(account1).stake('100')
 
       const initialUserStake = await staking
         .connect(account1)
@@ -304,7 +286,7 @@ describe('Staking Unit', () => {
     it('available to unstake is > 0, if time has passed', async () => {
       await token.mock.transferFrom.returns(true)
       await token.mock.transfer.returns(true)
-      await staking.connect(account1).stake('100', DEFAULTDURATION)
+      await staking.connect(account1).stake('100')
 
       const block = await ethers.provider.getBlock()
       await ethers.provider.send('evm_mine', [block['timestamp'] + 10])
@@ -317,12 +299,12 @@ describe('Staking Unit', () => {
     it('available to unstake is > 0, if time has passed with an updated vesting schedule', async () => {
       await token.mock.transferFrom.returns(true)
       await token.mock.transfer.returns(true)
-      await staking.connect(account1).stake('100', DEFAULTDURATION)
+      await staking.connect(account1).stake('100')
 
       const block = await ethers.provider.getBlock()
       await ethers.provider.send('evm_mine', [block['timestamp'] + 10])
 
-      await staking.connect(account1).extend('100')
+      await staking.connect(account1).stake('100')
 
       const available = await staking.available(account1.address)
 
@@ -353,7 +335,7 @@ describe('Staking Unit', () => {
     it('successful staking with delegate', async () => {
       await token.mock.transferFrom.returns(true)
       await staking.connect(account1).addDelegate(account2.address)
-      await staking.connect(account2).stake('100', DEFAULTDURATION)
+      await staking.connect(account2).stake('100')
       const block = await ethers.provider.getBlock()
       const userStakes = await staking
         .connect(account2)
@@ -367,7 +349,7 @@ describe('Staking Unit', () => {
       await token.mock.transferFrom.returns(true)
       await token.mock.transfer.returns(true)
       await staking.connect(account1).addDelegate(account2.address)
-      await staking.connect(account2).stake('100', DEFAULTDURATION)
+      await staking.connect(account2).stake('100')
 
       // move 10 seconds forward - 10% vested
       for (let index = 0; index < 10; index++) {
@@ -390,8 +372,8 @@ describe('Staking Unit', () => {
       await token.mock.transferFrom.returns(true)
       await token.mock.transfer.returns(true)
       await staking.connect(account1).addDelegate(account2.address)
-      await staking.connect(account2).stake('100', DEFAULTDURATION)
-      await staking.connect(account2).extend('100')
+      await staking.connect(account2).stake('100')
+      await staking.connect(account2).stake('100')
 
       const initialUserStake = await staking
         .connect(account2)
@@ -419,10 +401,10 @@ describe('Staking Unit', () => {
       await token.mock.transferFrom.returns(true)
       await token.mock.transfer.returns(true)
       // stake 400 over 4 blocks
-      await staking.connect(account1).stake('100', DEFAULTDURATION)
+      await staking.connect(account1).stake('100')
 
       for (let index = 0; index < 3; index++) {
-        await staking.connect(account1).extend('100')
+        await staking.connect(account1).stake('100')
       }
       const balance = await staking
         .connect(account1)

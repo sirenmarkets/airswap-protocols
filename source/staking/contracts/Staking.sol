@@ -16,7 +16,6 @@ contract Staking is Ownable {
   using SafeMath for uint256;
   struct Stake {
     uint256 duration;
-    // uint256 initial;
     uint256 balance;
     uint256 timestamp;
   }
@@ -25,9 +24,7 @@ contract Staking is Ownable {
   ERC20 public immutable token;
 
   // Vesting duration min and max
-  uint256 public vestingLengthMin;
-  uint256 public vestingLengthMax;
-  uint256 public vestingLengthDefault;
+  uint256 public vestingLength;
 
   // Mapping of account to stakes
   mapping(address => Stake) public allStakes;
@@ -49,22 +46,18 @@ contract Staking is Ownable {
    * @param _token address
    * @param _name string
    * @param _symbol string
-   * @param _vestingLengthMin uint256
-   * @param _vestingLengthMax uint256
-   * @param _vestingLengthDefault uint256
+   * @param _vestingLength uint256
    */
   constructor(
     ERC20 _token,
     string memory _name,
     string memory _symbol,
-    uint256 _vestingLengthMin,
-    uint256 _vestingLengthMax,
-    uint256 _vestingLengthDefault
+    uint256 _vestingLength
   ) {
     token = _token;
     name = _name;
     symbol = _symbol;
-    setVesting(_vestingLengthMin, _vestingLengthMax, _vestingLengthDefault);
+    setVesting(_vestingLength);
   }
 
   /**
@@ -107,25 +100,11 @@ contract Staking is Ownable {
    * @notice Stake tokens
    * @param amount uint256
    */
-  function stake(uint256 amount, uint256 duration) external {
+  function stake(uint256 amount) external {
     if (isDelegate[msg.sender]) {
-      require(this.balanceOf(delegateAccount[msg.sender]) == 0, "ALREADY_STAKED");
-      _stake(delegateAccount[msg.sender], amount, duration);
+      _stake(delegateAccount[msg.sender], amount);
     } else {
-      require(this.balanceOf(msg.sender) == 0,"ALREADY_STAKED");
-      _stake(msg.sender, amount, duration);
-    }
-  }
-
-  /**
-   * @notice Extend a stake
-   * @param amount uint256
-   */
-  function extend(uint256 amount) external {
-    if (isDelegate[msg.sender]) {
-      _extend(delegateAccount[msg.sender], amount, vestingLengthDefault);
-    } else {
-      _extend(msg.sender, amount, vestingLengthDefault);
+      _stake(msg.sender, amount);
     }
   }
 
@@ -183,24 +162,11 @@ contract Staking is Ownable {
 
   /**
    * @notice Set vesting config
-   * @param _vestingLengthMin uint256
-   * @param _vestingLengthMax uint256
-   * @param _vestingLengthDefault uint256
+   * @param _vestingLength uint256
    */
-  function setVesting(
-    uint256 _vestingLengthMin,
-    uint256 _vestingLengthMax,
-    uint256 _vestingLengthDefault
-  ) public onlyOwner {
-    require(_vestingLengthMin < _vestingLengthMax, "INVALID_VESTING");
-    require(
-      _vestingLengthMin < _vestingLengthDefault &&
-        _vestingLengthMax > _vestingLengthDefault,
-      "INVALID_DEFAULTDURATION"
-    );
-    vestingLengthMin = _vestingLengthMin;
-    vestingLengthMax = _vestingLengthMax;
-    vestingLengthDefault = _vestingLengthDefault;
+  function setVesting(uint256 _vestingLength) public onlyOwner {
+    require(_vestingLength != 0, "INVALID_VESTING");
+    vestingLength = _vestingLength;
   }
 
   /**
@@ -209,16 +175,7 @@ contract Staking is Ownable {
    * @param amount uint256
    */
   function stakeFor(address account, uint256 amount) public {
-    _stake(account, amount, vestingLengthDefault);
-  }
-
-  /**
-   * @notice Extend a stake for an account
-   * @param account address
-   * @param amount uint256
-   */
-  function extendFor(address account, uint256 amount) public {
-    _extend(account, amount, vestingLengthDefault);
+    _stake(account, amount);
   }
 
   /**
@@ -242,44 +199,21 @@ contract Staking is Ownable {
    * @param account address
    * @param amount uint256
    */
-  function _stake(address account, uint256 amount, uint256 duration) internal {
+  function _stake(address account, uint256 amount) internal {
     require(amount > 0, "AMOUNT_INVALID");
-    require(allStakes[account].balance == 0, "STAKE_ALREADY");
-    require(
-      vestingLengthMin < duration &&
-        vestingLengthMax > duration,
-      "INVALID_DURATION"
-    );
-    allStakes[account].duration = duration;
-    allStakes[account].balance = amount;
-    allStakes[account].timestamp = block.timestamp;
-    token.safeTransferFrom(msg.sender, address(this), amount);
-    emit Transfer(address(0), account, amount);
-  }
-
-  /**
-   * @notice Extend a stake
-   * @param account address
-   * @param amount uint256
-   * @param extendDuration uint256
-   */
-  function _extend(
-    address account,
-    uint256 amount,
-    uint256 extendDuration
-  ) internal {
-    Stake storage selected = allStakes[account];
-    require(this.balanceOf(account) > 0,"NOT_STAKED");
-    require(amount > 0, "AMOUNT_INVALID");
-    require(extendDuration >= selected.duration, "DURATION_INVALID");
-    uint256 nowAvailable = available(account);
-    selected.balance = selected.balance.add(amount);
-    if (selected.duration != extendDuration) {
-      selected.duration = extendDuration;
+    allStakes[account].duration = vestingLength;
+    if (allStakes[account].balance == 0) {
+      allStakes[account].balance = amount;
+      allStakes[account].timestamp = block.timestamp;
+    } else {
+      uint256 nowAvailable = available(account);
+      allStakes[account].balance = allStakes[account].balance.add(amount);
+      allStakes[account].timestamp = block.timestamp.sub(
+        nowAvailable.mul(allStakes[account].duration).div(
+          allStakes[account].balance
+        )
+      );
     }
-    selected.timestamp = block.timestamp.sub(
-      nowAvailable.mul(selected.duration).div(selected.balance)
-    );
     token.safeTransferFrom(msg.sender, address(this), amount);
     emit Transfer(address(0), account, amount);
   }
